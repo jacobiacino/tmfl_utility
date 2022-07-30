@@ -1,4 +1,5 @@
 from tmfl_utility.league import League
+from tmfl_utility.players import Players
 import pandas as pd
 import os
 
@@ -10,7 +11,21 @@ import os
 # Read league ID from environment variable [so it's not publicly exposed ;)]
 league_id = os.environ['LEAGUE_ID']
 l = League(league_id)
-all_adds = l.get_completed_waiver_or_fa_adds()
+all_add_ids = l.get_completed_waiver_or_fa_adds()
+
+print(all_add_ids)
+
+P = Players()
+player_list = P.get_players()
+
+all_adds = [
+    {
+        'id': a,
+        'name': player_list[a].get('search_full_name', a),
+        'positions': player_list[a].get('fantasy_positions')
+    }
+    for a in all_add_ids
+]
 
 transactions = pd.DataFrame(all_adds)
 
@@ -20,10 +35,11 @@ adps = pd.read_csv('./data/adp.csv')[['player', 'sleeper', 'avg']]
 adps['player'] = adps['player'].str.replace('II', '')
 adps['player'] = adps['player'].str.replace('III', '')
 adps['player'] = adps['player'].str.replace('Jr.', '')
-# Sleeper puts all names lowecase
+# Sleeper puts all names lowercase
 adps['player'] = adps['player'].str.lower()
-# Sleeper removes all periods
+# Sleeper removes all periods and apostrophes
 adps['player'] = adps['player'].str.replace('.', '')
+adps['player'] = adps['player'].str.replace('\'', '')
 # Sleeper removes all spaces
 adps['player'] = adps['player'].str.replace(' ', '')
 
@@ -42,8 +58,9 @@ player_stats['Player'] = player_stats['Player'].str.replace('III', '')
 player_stats['Player'] = player_stats['Player'].str.replace('Jr.', '')
 # Sleeper puts all names lowecase
 player_stats['Player'] = player_stats['Player'].str.lower()
-# Sleeper removes all periods
+# Sleeper removes all periods and apostrophes
 player_stats['Player'] = player_stats['Player'].str.replace('.', '')
+player_stats['Player'] = player_stats['Player'].str.replace('\'', '')
 # Sleeper removes all spaces
 player_stats['Player'] = player_stats['Player'].str.replace(' ', '')
 
