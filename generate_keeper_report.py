@@ -2,6 +2,8 @@ from tmfl_utility.league import League
 from tmfl_utility.players import Players
 import pandas as pd
 import os
+import awswrangler as wr
+import boto3
 
 # This file was a quick check written to evaluate how keeper rules should work for the
 # TMFL in 2022. The investigation was centered around which FA pickups from the 2021
@@ -30,37 +32,29 @@ keeper_info = [
 ]
 
 k = pd.DataFrame(keeper_info)
-k.to_csv("./keeper_report.csv")
 
-# ADP data sourced from https://www.fantasypros.com/nfl/adp/half-point-ppr-overall.php
-adps = pd.read_csv('./data/adp.csv')[['player', 'sleeper', 'avg']]
-# Sleeper removes name suffixes
-adps['player'] = adps['player'].str.replace('II', '')
-adps['player'] = adps['player'].str.replace('III', '')
-adps['player'] = adps['player'].str.replace('Jr.', '')
-# Sleeper puts all names lowercase
-adps['player'] = adps['player'].str.lower()
-# Sleeper removes all periods and apostrophes
-adps['player'] = adps['player'].str.replace('.', '')
-adps['player'] = adps['player'].str.replace('\'', '')
-# Sleeper removes all spaces
-adps['player'] = adps['player'].str.replace(' ', '')
+s3_target = os.environ["s3_target"]
+s3_location = "s3://{}/07-31-2022/00:00:59/adp_data.csv".format(s3_target)
+
+adps = wr.s3.read_csv(path=s3_location)
 
 def adp_to_round(row):
-    return (int(row['avg'] / 12)) + 1
+    return (int(row['avg_adp'] / 12)) + 1
 
 def keeper_value(row):
     return row['keeper_cost'] - row['round_adp'] if row['keeper_eligible'] else None
 
 adps['round_adp'] = adps.apply(lambda row: adp_to_round(row), axis=1)
 
-merged = pd.merge(left=k, right=adps, left_on='name', right_on='player')
+merged = pd.merge(left=k, right=adps, left_on='name', right_on='name')
 
 merged['value'] = merged.apply(lambda row: keeper_value(row), axis=1)
 
 merged = merged.sort_values(by='value', ascending=False)
 
-merged.loc[merged['keeper_eligible']].to_csv('full_eligible_keeper_report.csv')
+filtered = merged.loc[merged['keeper_eligible']]
 
-
-
+wr.s3.to_csv(
+    filtered,
+    path=s3_location
+)
