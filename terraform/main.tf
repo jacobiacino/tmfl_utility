@@ -76,3 +76,23 @@ resource "aws_lambda_function" "web_scraper" {
     }
   }
 }
+
+resource "aws_cloudwatch_event_rule" "every_hour" {
+  name                = "scrape_adp_every_hour"
+  description         = "Fires every hour"
+  schedule_expression = "cron(0 * ? * * *)"
+}
+
+resource "aws_cloudwatch_event_target" "scrape_adp_every_hour" {
+  rule      = aws_cloudwatch_event_rule.every_hour.name
+  target_id = "lambda"
+  arn       = aws_lambda_function.web_scraper.arn
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch_to_web_scraper" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.web_scraper.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.every_hour.arn
+}
