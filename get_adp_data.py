@@ -6,6 +6,7 @@ import boto3
 from io import StringIO
 from bs4 import BeautifulSoup
 from datetime import datetime
+import matplotlib
 import os
 
 
@@ -60,6 +61,7 @@ def lambda_handler(event, context):
                     break
     
             player_name = re.sub("\(([^\)]+)\)", "", player_name)
+            dispaly_name = player_name.strip()
             player_name = player_name.replace("II", "") \
             .replace("III", "") \
             .replace("Jr.", "") \
@@ -72,6 +74,7 @@ def lambda_handler(event, context):
             elems = p.select("td")
             player_data = {
                 "name": player_name,
+                "display_name": dispaly_name,
                 "position_rank": elems[2].text.strip(),
                 "yahoo_adp": elems[3].text.strip(),
                 "fantrax_adp": elems[4].text.strip(),
@@ -82,7 +85,6 @@ def lambda_handler(event, context):
             data.append(player_data)
 
     k = pd.DataFrame(data)
-    # k.to_csv("./adp_data.csv", index=False)
     
     s3_client = boto3.resource("s3")
     
